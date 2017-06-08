@@ -458,10 +458,21 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
         2D tensor with shape:
         `(batch_size, channels)`
     """
+    def __init__(self, **kwargs):
+        self.supports_masking = True
+        super(GlobalAveragePooling1D, self).__init__(**kwargs)
 
-    def call(self, inputs):
-        return K.mean(inputs, axis=1)
+    def call(self, inputs, mask=None):
+        if mask is not None:
+            num_non_masked_samples = mask.sum(axis=1, keepdims=True)
+            mask_reshaped = K.repeat_elements(mask, inputs.shape[-1], axis=1).reshape(inputs.shape)
+            input_masked = mask_reshaped * inputs
+            return K.cast(input_masked.sum(axis=1) / num_non_masked_samples, K.floatx())
+        else:
+            return K.mean(inputs, axis=1)
 
+    def compute_mask(self, input, input_mask=None):
+        return None
 
 class GlobalMaxPooling1D(_GlobalPooling1D):
     """Global max pooling operation for temporal data.
